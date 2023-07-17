@@ -9,7 +9,9 @@ class Main(Scene):
         # self.gd_overview()
         # self.gd_process()
         # self.gd_example()
-        self.gd_play()
+        # self.gd_play()
+        # self.explain_gd()
+        self.gd_lr()
 
         # self.thanks()
     def show_info(self):
@@ -207,6 +209,7 @@ class Main(Scene):
         self.play(FadeOut(gd_))
         figure = VGroup(fun_, ax, graph)
         self.play(figure.animate.to_edge(LEFT))
+        self.play(figure.animate.scale(1.2))
 
         steps = np.arange(0, 11, 1)
         x = 2
@@ -244,18 +247,111 @@ class Main(Scene):
             )
         )
         self.play(Create(line), Create(dot))
-        def update_text(mob):
-            pass
 
-        learning_rate = Tex(f"学习率 lr = {lr}", tex_template=TexTemplateLibrary.ctex)
-        step_info = Tex(f"迭代次数：{steps[int(step.get_value())]}",tex_template=TexTemplateLibrary.ctex)
-        x_info = Tex(f"当前$x$：{X[int(step.get_value())]}",tex_template=TexTemplateLibrary.ctex)
-        fx_info = Tex(f"当前$f(x)$:{FX[int(step.get_value())]}",tex_template=TexTemplateLibrary.ctex)
-        fxx_info = Tex(f"当前$f'(x)$:{FXX[int(step.get_value())]}",tex_template=TexTemplateLibrary.ctex)
-        formula = MathTex(r"x-lr*f'(x):{}", tex_template=TexTemplateLibrary.ctex)
-
-        info = VGroup(learning_rate, step_info, x_info, fx_info, fxx_info, formula).arrange(DOWN, aligned_edge=LEFT).to_edge(RIGHT)
+        learning_rate = Tex(f"学习率 lr = {lr:.2f}", tex_template=TexTemplateLibrary.ctex)
+        step_info = Tex(f"迭代次数：{0}",tex_template=TexTemplateLibrary.ctex)
+        x_info = Tex(f"当前$x$：{X[0]:.2f}",tex_template=TexTemplateLibrary.ctex)
+        fx_info = Tex(f"当前$f(x)$: {FX[0]:.2f}",tex_template=TexTemplateLibrary.ctex)
+        fxx_info = Tex(f"当前$f'(x)$: {FXX[0]:.2f}",tex_template=TexTemplateLibrary.ctex)
+        formula = MathTex(f"x-lr*f'(x): {X[1]:.2f}", tex_template=TexTemplateLibrary.ctex)
+        info = always_redraw(lambda : VGroup(learning_rate, step_info, x_info, fx_info, fxx_info, formula).arrange(DOWN, aligned_edge=LEFT).to_edge(RIGHT))
         self.play(Write(info))
 
-        self.play(ApplyMethod(step.increment_value, 11), run_time=20)
+        def info_update_text(mob):
+
+            learning_rate = Tex(f"学习率 lr = {lr}", tex_template=TexTemplateLibrary.ctex)
+            step_info = Tex(f"迭代次数：{int(steps[int(step.get_value())])}",tex_template=TexTemplateLibrary.ctex)
+            x_info = Tex(f"当前$x$：{X[int(step.get_value())]:.2f}",tex_template=TexTemplateLibrary.ctex)
+            fx_info = Tex(f"当前$f(x)$: {FX[int(step.get_value())]:.2f}",tex_template=TexTemplateLibrary.ctex)
+            fxx_info = Tex(f"当前$f'(x)$: {FXX[int(step.get_value())]:.2f}",tex_template=TexTemplateLibrary.ctex)
+            formula = MathTex(f"x-lr*f'(x):{X[int(step.get_value())]-lr*FXX[int(step.get_value())]:.2f}", tex_template=TexTemplateLibrary.ctex)
+
+            mob.become(
+                VGroup(learning_rate, step_info, x_info, fx_info, fxx_info, formula)
+                .arrange(DOWN, aligned_edge=LEFT).to_edge(RIGHT))
+
+        info.add_updater(info_update_text)
+
+        self.play(ApplyMethod(step.increment_value, 10), run_time=30)
+        self.wait(5)
+        self.clear()
         self.wait(2)
+
+    def explain_gd(self):
+        title = Text("梯度下降法的直观理解").to_corner(UL)
+        self.play(Write(title))
+
+        plane = NumberPlane(x_range=[-4, 6, 1], y_range=[-5, 20, 5], x_length=8, y_length=5).add_coordinates()
+        graph = plane.plot(lambda x: (x+3)*(x-1)*(x-3), x_range=[-4, 6, 1])
+        self.play(Write(plane), Write(graph))
+        self.wait(2)
+
+
+        def fxx(x):
+            return 3*x**2 - 2*x - 9
+
+        def fx(x):
+            return x**3 - x**2 - 9*x + 9
+
+        # 右边
+        x1 = 3.5
+        line = plane.plot(lambda x: fxx(x1)*(x-x1) + fx(x1), x_range=[-4, 6, 1])
+        dot = Dot(plane.coords_to_point(x1, fx(x1)), color=RED)
+
+        self.play(Create(line), Create(dot))
+        self.wait(5)
+
+        info = Tex(f"x={x1},f'(x)={fxx(x1)}, +", tex_template=TexTemplateLibrary.ctex, font_size=20).next_to(dot, RIGHT)
+        self.play(Write(info))
+        self.wait(10)
+        direction = Line(dot.get_center(), dot.get_center()+LEFT).add_tip()
+        x_dir = Tex("$x-lr_{+}*val_{+}$", font_size=30, color=RED).next_to(direction, UP)
+        self.play(FadeIn(direction),FadeIn(x_dir), run_time=2)
+        self.wait(5)
+
+        self.play(FadeOut(line), FadeOut(info), FadeOut(dot), FadeOut(direction), FadeOut(x_dir))
+        self.wait(2)
+
+        # 左边
+        x2 = -0.5
+        line = plane.plot(lambda x: fxx(x2) * (x - x2) + fx(x2), x_range=[-4, 6, 1])
+        dot = Dot(plane.coords_to_point(x2, fx(x2)), color=RED)
+
+        self.play(Create(line), Create(dot))
+        self.wait(5)
+
+        info = Tex(f"x={x2},f'(x)={fxx(x2)}, -", tex_template=TexTemplateLibrary.ctex, font_size=20).next_to(dot, LEFT)
+        self.play(Write(info))
+        self.wait(10)
+        direction = Line(dot.get_center(), dot.get_center() + RIGHT).add_tip()
+        x_dir = Tex("$x-lr_{+}*val_{-}$", font_size=30, color=RED).next_to(direction, UP)
+        self.play(FadeIn(direction), FadeIn(x_dir), run_time=2)
+        self.wait(5)
+
+        self.play(FadeOut(line), FadeOut(info), FadeOut(dot), FadeOut(direction), FadeOut(x_dir))
+        self.wait(2)
+
+        # 步长
+        x3 = 1.2
+        line = plane.plot(lambda x: fxx(x3) * (x - x3) + fx(x3), x_range=[-4, 6, 1])
+        dot = Dot(plane.coords_to_point(x3, fx(x3)), color=RED)
+
+        self.play(Create(line), Create(dot))
+        self.wait(5)
+
+        info = Tex(f"x={x3},f'(x)={fxx(x3)}, -", tex_template=TexTemplateLibrary.ctex, font_size=20).next_to(dot, LEFT)
+        self.play(Write(info))
+        self.wait(10)
+        direction = Line(dot.get_center(), dot.get_center() + 0.5*RIGHT).add_tip()
+        x_dir = Tex("$x-lr_{+}*val_{-}$", font_size=30, color=RED).next_to(direction, UP)
+        self.play(FadeIn(direction), FadeIn(x_dir), run_time=2)
+        self.wait(5)
+
+        self.play(FadeOut(line), FadeOut(info), FadeOut(dot), FadeOut(direction), FadeOut(x_dir))
+        self.wait(2)
+
+        self.clear()
+
+    def gd_lr(self):
+        title = Text("梯度下降法的直观理解").to_corner(UL)
+        self.play(Write(title))
